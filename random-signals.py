@@ -32,6 +32,15 @@ def deviation(a):
     return np.std(a)
 
 
+def correlation(a1, a2):
+    """
+    Корреляция
+    Rxy(t, τ) = sum( (x(t) - Mx)(y(t + τ)) ) / N - 1
+    """
+    r = np.correlate(a1, a2, mode='full')
+    return r[int(len(r)/2):] if (a1 == a2).all() else r[:]
+
+
 def amplitude(lower, upper):
     """
     Случайная амплитуда.
@@ -48,17 +57,6 @@ def angle_phi(lower, upper):
     return np.random.uniform(lower, upper)
 
 
-def next_frequency(n, step):
-    """
-    Расчёт частоты для следующей гармоники.
-    w(n) = W - n * (W / (n - 1))
-    :param n: номер гармоники
-    :param step: шаг
-    :return: частота
-    """
-    return cutoff_frequency - n * step
-
-
 def generate_signal(harmonics, frequency, sampling):
     """
     Случайный сигнал...
@@ -69,7 +67,7 @@ def generate_signal(harmonics, frequency, sampling):
     :return: сигнал
     """
 
-    # W / (n - 1) - шаг частоты для расчёта w(n) функцией ниже
+    # Wгр / (n - 1) - шаг частоты для расчёта wp ниже
     step = frequency / (harmonics - 1)
 
     # создаём матрицу: строки - гармоники, столбцы - сигналы
@@ -77,7 +75,7 @@ def generate_signal(harmonics, frequency, sampling):
 
     # генерируем гармоники, заполняем строки матрицы сигналами
     for h in range(harmonics):
-        wp = next_frequency(h, step)
+        wp = frequency - h * step
         for t in range(sampling):
             harmonics_matrix[h, t] = \
                 amplitude(-5, 5) * np.sin(wp * t + angle_phi(0, 360))
@@ -100,19 +98,41 @@ if __name__ == '__main__':
     # степень дискретизации (количество точек на графике)
     sampling_rate = 256
 
-    signal = generate_signal(number_of_harmonics, cutoff_frequency, sampling_rate)
+    signal_one = generate_signal(number_of_harmonics, cutoff_frequency, sampling_rate)
+    signal_two = generate_signal(number_of_harmonics, cutoff_frequency, sampling_rate)
 
-    mx = mean(signal)
-    dx = dispersion(signal)
-    s = deviation(signal)
+    mx = mean(signal_one)
+    dx = dispersion(signal_one)
+    s = deviation(signal_one)
 
-    fig, axs = plt.subplots(1, 1, constrained_layout=True)
+    rxx = correlation(signal_one, signal_one)
+    rxy = correlation(signal_one, signal_two)
 
-    axs.plot(signal)
-    axs.set_title(f'Случайный сигнал\n\nMx = {mx}\nDx = {dx}\nσ = {s}\n')
-    axs.set_xlabel('время')
-    axs.set_ylabel('сигнал')
-    axs.grid(True)
+    fig, axs = plt.subplots(2, 2, constrained_layout=True)
+
+    axs[0][0].plot(signal_one)
+    axs[0][0].set_title(f'Случайный сигнал \'x\'\n\nMx = {mx}\nDx = {dx}\nσ = {s}\n')
+    axs[0][0].set_xlabel('время')
+    axs[0][0].set_ylabel('сигнал')
+    axs[0][0].grid(True)
+
+    axs[0][1].plot(rxx)
+    axs[0][1].set_title(f'Автокорреляция Rxx\n')
+    axs[0][1].set_xlabel('сигнал')
+    axs[0][1].set_ylabel('сигнал')
+    axs[0][1].grid(True)
+
+    axs[1][0].plot(signal_two)
+    axs[1][0].set_title(f'\nСлучайный сигнал \'y\'\n')
+    axs[1][0].set_xlabel('время')
+    axs[1][0].set_ylabel('сигнал')
+    axs[1][0].grid(True)
+
+    axs[1][1].plot(np.arange(-sampling_rate + 1, sampling_rate), rxy)
+    axs[1][1].set_title(f'\nКорреляция Rxy\n')
+    axs[1][1].set_xlabel('сигнал (τ - t)')
+    axs[1][1].set_ylabel('корреляция')
+    axs[1][1].grid(True)
 
     fig.canvas.set_window_title('')
 
