@@ -137,3 +137,4 @@ if __name__ == '__main__':
     fig.canvas.set_window_title('')
 
     plt.show()
+
